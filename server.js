@@ -8,6 +8,10 @@ var CLASS_COLLECTION = "attendance";
 var app = express();
 app.use(bodyParser.json());
 
+var distDir = __dirname + "/dist/";
+app.use(express.static(distDir));
+
+
 // Create a database variable outside of the database connection callback to reuse the connection pool in your app.
 var db;
 
@@ -28,60 +32,80 @@ mongodb.MongoClient.connect(process.env.MONGODB_URI || "mongodb://localhost:2701
     console.log("App now running on port", port);
   });
 });
-
 // Generic error handler used by all endpoints.
 function handleError(res, reason, message, code) {
-    console.log("ERROR: " + reason);
-    res.status(code || 500).json({"error": message});
-  }
-  
-  /*  "/api/attendance"
-   *    GET: finds all students
-   * 
-   * 
-   *    POST: create a new student
-   */
-  
-  app.get("/api/attendance", function(req, res) {
-    db.collection(CLASS_COLLECTION).find({}).toArray(function(err, docs) {
-      if (err) {
-        handleError(res, err.message, "Failed to get contacts.");
-      } else {
-        res.status(200).json(docs);
-      }
-    });
-  });
-  
-  app.post("/api/attendance", function(req, res) {
-    var newStudent = req.body;
-    newStudent.createDate = new Date();
- 
-    if (!req.body.name) {
-      handleError(res, "Invalid user input", "Must provide a name.", 400);
-    } else {
-      db.collection(CLASS_COLLECTION).insertOne(newStudent, function(err, doc) {
-        if (err) {
-          handleError(res, err.message, "Failed to create new contact.");
-        } else {
-          res.status(201).json(doc.ops[0]);
-        }
-      });
-    }
-  });
-  
-  /*  "/api/attendance/:id"
-   *    GET: find student by id
-   *    PUT: update student by id
-   *    DELETE: deletes student by id
-   */
-  
-  app.get("/api/attendance/:id", function(req, res) {
-  });
-  
-  app.put("/api/attendance/:id", function(req, res) {
-  });
-  
-  app.delete("/api/attendance/:id", function(req, res) {
-  });
+  console.log("ERROR: " + reason);
+  res.status(code || 500).json({"error": message});
+}
 
+/*  "/api/attendance"
+ *    GET: finds all students
+ *    POST: create a new student
+ */
 
+ app.get("/api/attendance", function(req, res) {
+   db.collection(CLASS_COLLECTION).find({}).toArray(function(err, docs) {
+     if (err) {
+       handleError(res, err.message, "Failed to get contacts.");
+     } else {
+       res.status(200).json(docs);
+     }
+   });
+ });
+
+ app.post("/api/attendance", function(req, res) {
+   var newStudent = req.body;
+   newStudent.createDate = new Date();
+
+   if (!req.body.name) {
+     handleError(res, "Invalid user input", "Must provide a name.", 400);
+   } else {
+     db.collection(CLASS_COLLECTION).insertOne(newStudent, function(err, doc) {
+       if (err) {
+         handleError(res, err.message, "Failed to create new contact.");
+       } else {
+         res.status(201).json(doc.ops[0]);
+       }
+     });
+   }
+ });
+
+/*  "/api/attendance/:id"
+ *    GET: find student by id
+ *    PUT: update student by id
+ *    DELETE: deletes student by id
+ */
+
+ app.get("/api/attendance/:id", function(req, res) {
+   db.collection(CLASS_COLLECTION).findOne({ _id: new ObjectID(req.params.id) }, function(err, doc) {
+     if (err) {
+       handleError(res, err.message, "Failed to get contact");
+     } else {
+       res.status(200).json(doc);
+     }
+   });
+ });
+
+ app.put("/api/attendance/:id", function(req, res) {
+   var updateDoc = req.body;
+   delete updateDoc._id;
+
+   db.collection(CLASS_COLLECTION).updateOne({_id: new ObjectID(req.params.id)}, updateDoc, function(err, doc) {
+     if (err) {
+       handleError(res, err.message, "Failed to update contact");
+     } else {
+       updateDoc._id = req.params.id;
+       res.status(200).json(updateDoc);
+     }
+   });
+ });
+
+ app.delete("/api/attendance/:id", function(req, res) {
+   db.collection(CLASS_COLLECTION).deleteOne({_id: new ObjectID(req.params.id)}, function(err, result) {
+     if (err) {
+       handleError(res, err.message, "Failed to delete contact");
+     } else {
+       res.status(200).json(req.params.id);
+     }
+   });
+ });
